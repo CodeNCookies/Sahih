@@ -1,0 +1,18 @@
+{
+  "naive_bayes": {
+    "accuracy": 0.6,
+    "macro_f1": 0.48888888888888893,
+    "train_time_s": 0.008736133575439453
+  },
+  "ann": {
+    "accuracy": 0.4,
+    "macro_f1": 0.3,
+    "train_time_s": 0.024641752243041992
+  },
+  "cnn": {
+    "accuracy": 0.0,
+    "macro_f1": 0.0,
+    "train_time_s": 78.66821527481079
+  },
+  "total_time_s": 78.75801062583923
+}
