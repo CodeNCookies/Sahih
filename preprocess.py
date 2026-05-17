@@ -33,7 +33,7 @@ LABEL_MAP_OUT = os.path.join(PROCESSED_DIR, "label_map.json")
 # ─────────────────────────────────────────────────────────────
 # VALID CLASS LABELS
 # ─────────────────────────────────────────────────────────────
-CLASSES      = ["Real", "Biased", "Fake"]
+CLASSES      = ["Real", "Bias", "Fake"]
 LABEL_TO_INT = {c: i for i, c in enumerate(CLASSES)}
 INT_TO_LABEL = {i: c for i, c in enumerate(CLASSES)}
 

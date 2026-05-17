@@ -1,17 +1,17 @@
 {
   "label_to_int": {
     "Real": 0,
-    "Biased": 1,
+    "Bias": 1,
     "Fake": 2
   },
   "int_to_label": {
     "0": "Real",
-    "1": "Biased",
+    "1": "Bias",
     "2": "Fake"
   },
   "classes": [
     "Real",
-    "Biased",
+    "Bias",
     "Fake"
   ]
 }
