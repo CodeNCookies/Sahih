@@ -1,663 +1,835 @@
 <!DOCTYPE html>
 <html lang="ur" dir="rtl">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Urdu News Verifier — Fake & Bias Detector</title>
-  <meta name="description"
-    content="AI-powered Urdu news authenticity detector. Classify news as Real, Biased, or Fake using Naive Bayes or TextCNN." />
+  <meta name="description" content="AI-powered Urdu news authenticity detector. Classify news as Real, Biased, or Fake using Naive Bayes or TextCNN." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap"
-    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
+      --bg:       #050810;
+      --surface:  #0b0f1e;
+      --panel:    rgba(13,18,35,0.92);
+      --border:   rgba(255,255,255,0.07);
+      --border-hi:rgba(255,255,255,0.14);
 
-      --bg: #0f172a;
-      --bg2: #111827;
+      --ink:      #e8ecf4;
+      --ink2:     #6b7599;
+      --ink3:     #3a4166;
 
-      --card: rgba(30, 41, 59, .72);
+      --indigo:   #4f6ef7;
+      --indigo2:  #7b5ef8;
+      --cyan:     #22d3ee;
 
-      --border: rgba(255, 255, 255, .08);
+      --real:     #00e5a0;
+      --real-dim: rgba(0,229,160,0.12);
+      --bias:     #f7b731;
+      --bias-dim: rgba(247,183,49,0.12);
+      --fake:     #ff4d6d;
+      --fake-dim: rgba(255,77,109,0.12);
 
-      --primary: #f8fafc;
-      --secondary: #94a3b8;
-
-      --accent: #4f46e5;
-      --accent2: #7c3aed;
-
-      --real: #22c55e;
-      --bias: #f59e0b;
-      --fake: #ef4444;
-
-      --radius: 18px;
-
-      --shadow:
-        0 8px 32px rgba(0, 0, 0, .25);
-
+      --r: 16px;
+      --glow: 0 0 60px rgba(79,110,247,0.15);
     }
 
+    html, body {
+      height: 100%;
+    }
 
     body {
-
-      background:
-        linear-gradient(135deg,
-          #0f172a,
-          #111827);
-
+      background: var(--bg);
       min-height: 100vh;
+      font-family: 'Syne', sans-serif;
+      color: var(--ink);
+      overflow-x: hidden;
+    }
 
-      padding: 40px;
+    /* ── Animated grid bg ── */
+    body::before {
+      content: "";
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(79,110,247,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,110,247,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      animation: gridDrift 60s linear infinite;
+    }
+    @keyframes gridDrift { to { background-position: 48px 48px; } }
 
-      font-family: 'Inter', sans-serif;
+    body::after {
+      content: "";
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 10% 5%, rgba(79,110,247,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 90% 90%, rgba(123,94,248,0.14) 0%, transparent 55%),
+        radial-gradient(ellipse 30% 30% at 50% 50%, rgba(34,211,238,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
 
-      color: var(--primary);
+    /* ── Layout ── */
+    .shell {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: 1fr;
+      padding: 20px 16px 12px;
+      gap: 14px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
 
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: var(--panel);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--r);
+      backdrop-filter: blur(24px);
+      animation: slideDown 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes slideDown { from { opacity:0; transform: translateY(-16px); } to { opacity:1; transform: none; } }
+
+    .header-left { display:flex; flex-direction:column; gap:4px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 50px;
+      background: rgba(79,110,247,0.15);
+      border: 1px solid rgba(79,110,247,0.3);
+      color: #a5b4fc;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+    .badge::before {
+      content:"";
+      width:6px; height:6px;
+      border-radius:50%;
+      background: var(--indigo);
+      box-shadow: 0 0 8px var(--indigo);
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(100deg, #e8ecf4 30%, #a5b4fc 70%, #22d3ee 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.01em;
+    }
+
+    .header-right {
+      text-align: left;
+      direction: rtl;
+    }
+    .urdu-sub {
+      font-family: 'Noto Nastaliq Urdu';
+      font-size: 13px;
+      color: var(--ink2);
+      line-height: 1.9;
+    }
+
+    /* ── Main grid ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+      animation: fadeUp 0.5s 0.1s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes fadeUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: none; } }
+
+    /* ── Panel base ── */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      backdrop-filter: blur(24px);
+      padding: 22px;
+      transition: border-color 0.3s;
+    }
+    .panel:hover { border-color: var(--border-hi); }
+
+    /* ── Section label ── */
+    .sec-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      margin-bottom: 12px;
+      font-family: 'JetBrains Mono';
+    }
+
+    /* ── Model tabs ── */
+    .model-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--ink2);
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Syne';
+      cursor: pointer;
+      transition: all 0.25s;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+    .tab-btn:hover {
+      border-color: var(--border-hi);
+      color: var(--ink);
+      background: rgba(255,255,255,0.04);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(79,110,247,0.25), rgba(123,94,248,0.20));
+      border-color: rgba(79,110,247,0.5);
+      color: #c7d2fe;
+      box-shadow: 0 0 20px rgba(79,110,247,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .tab-icon { margin-left: 6px; }
+
+    /* ── Textarea ── */
+    .textarea-wrap { position: relative; }
+
+    #news-input {
+      width: 100%;
+      min-height: 160px;
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      font-size: 16px;
+      font-family: 'Noto Nastaliq Urdu';
+      line-height: 2;
+      outline: none;
+      resize: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+      direction: rtl;
+    }
+    #news-input::placeholder { color: var(--ink3); }
+    #news-input:focus {
+      border-color: rgba(79,110,247,0.6);
+      box-shadow: 0 0 0 3px rgba(79,110,247,0.12), 0 0 30px rgba(79,110,247,0.08);
+    }
+
+    .char-count {
+      position: absolute;
+      bottom: 10px;
+      left: 14px;
+      font-family: 'JetBrains Mono';
+      font-size: 10px;
+      color: var(--ink3);
+      direction: ltr;
+    }
+
+    /* ── Predict button ── */
+    .btn-predict {
+      width: 100%;
+      margin-top: 14px;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 800;
+      font-family: 'Syne';
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(135deg, var(--indigo), var(--indigo2));
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s;
+      box-shadow: 0 4px 20px rgba(79,110,247,0.3);
+    }
+    .btn-predict::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .btn-predict:hover:not(:disabled)::before { opacity: 1; }
+    .btn-predict:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(79,110,247,0.45);
+    }
+    .btn-predict:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-inner { display:flex; align-items:center; justify-content:center; gap:8px; }
+    .btn-icon { font-size:15px; }
+
+    .spinner {
+      display: none;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Right column: Result ── */
+    .result-col { display: flex; flex-direction: column; gap: 12px; }
+
+    /* ── Idle placeholder ── */
+    .idle-state {
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 28px 20px;
+      text-align: center;
+      min-height: 200px;
     }
-
-
-    body::before {
-
-      content: "";
-
-      position: fixed;
-
-      inset: 0;
-
-      background:
-
-        radial-gradient(circle at top left,
-          rgba(79, 70, 229, .15),
-          transparent 35%),
-
-        radial-gradient(circle at bottom right,
-          rgba(124, 58, 237, .10),
-          transparent 40%);
-
-      z-index: -1;
+    .idle-orb {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(79,110,247,0.2), rgba(123,94,248,0.15));
+      border: 1px solid rgba(79,110,247,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 30px rgba(79,110,247,0.15);
     }
-
-
-    /* HEADER */
-
-    header {
-
-      width: 100%;
-      max-width: 1100px;
-
-      padding: 35px;
-
-      margin-bottom: 30px;
-
-      background: var(--card);
-
-      backdrop-filter: blur(20px);
-
-      border: 1px solid var(--border);
-
-      border-radius: var(--radius);
-
-      box-shadow: var(--shadow);
-
-    }
-
-
-    .badge {
-
-      display: inline-block;
-
-      padding: 8px 15px;
-
-      border-radius: 50px;
-
-      background: rgba(79, 70, 229, .18);
-
-      color: #c7d2fe;
-
-      font-size: 12px;
-
-      font-weight: 600;
-
-      margin-bottom: 18px;
-    }
-
-
-    header h1 {
-
-      font-size: 42px;
-
-      font-weight: 800;
-
-      margin-bottom: 12px;
-
-      background:
-        linear-gradient(90deg,
-          white,
-          #c7d2fe);
-
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-
-    header p {
-
-      font-family: 'Noto Nastaliq Urdu';
-
-      font-size: 16px;
-
-      color: var(--secondary);
-
-      line-height: 2;
-    }
-
-
-
-    /* MAIN CARD */
-
-    .card {
-
-      width: 100%;
-      max-width: 1100px;
-
-      padding: 35px;
-
-      background: var(--card);
-
-      backdrop-filter: blur(20px);
-
-      border-radius: var(--radius);
-
-      border: 1px solid var(--border);
-
-      box-shadow: var(--shadow);
-    }
-
-
-
-    /* MODEL BUTTONS */
-
-    .model-tabs {
-
-      display: flex;
-
-      gap: 12px;
-
-      margin-bottom: 25px;
-    }
-
-
-    .tab-btn {
-
-      flex: 1;
-
-      padding: 14px;
-
-      border-radius: 14px;
-
-      border: none;
-
-      background: rgba(255, 255, 255, .04);
-
-      color: var(--secondary);
-
-      font-size: 14px;
-
-      font-weight: 600;
-
-      cursor: pointer;
-
-      transition: .3s;
-    }
-
-
-    .tab-btn:hover {
-
-      background: rgba(255, 255, 255, .08);
-
-      transform: translateY(-2px);
-
-      color: white;
-    }
-
-
-    .tab-btn.active {
-
-      background:
-        linear-gradient(135deg,
-          var(--accent),
-          var(--accent2));
-
-      color: white;
-    }
-
-
-
-    /* INPUT */
-
-    #news-input {
-
-      width: 100%;
-
-      min-height: 180px;
-
-      padding: 20px;
-
-      border-radius: 16px;
-
-      background: #0f172a;
-
-      border: 1px solid var(--border);
-
-      color: white;
-
-      font-size: 18px;
-
-      font-family: 'Noto Nastaliq Urdu';
-
-      line-height: 2;
-
-      outline: none;
-
-      transition: .3s;
-    }
-
-
-    #news-input:focus {
-
-      border-color: var(--accent);
-
-      box-shadow:
-        0 0 0 4px rgba(79, 70, 229, .15);
-    }
-
-
-
-    /* BUTTON */
-
-    .btn-predict {
-
-      width: 100%;
-
-      margin-top: 25px;
-
-      padding: 16px;
-
-      border: none;
-
-      border-radius: 14px;
-
-      font-size: 15px;
-
-      font-weight: 700;
-
-      cursor: pointer;
-
-      color: white;
-
-      background:
-        linear-gradient(135deg,
-          var(--accent),
-          var(--accent2));
-
-      transition: .3s;
-    }
-
-
-    .btn-predict:hover {
-
-      transform: translateY(-2px);
-
-      box-shadow:
-        0 10px 25px rgba(79, 70, 229, .35);
-    }
-
-
-
-    /* RESULT */
+    .idle-text { color: var(--ink2); font-size: 13px; }
+    .idle-hint { font-family:'Noto Nastaliq Urdu'; font-size:12px; color:var(--ink3); line-height:1.9; }
+
+    /* ── Result card ── */
+    #result-panel { display: none; }
 
     .result-card {
-
-      margin-top: 30px;
-
-      padding: 30px;
-
-      background: rgba(255, 255, 255, .04);
-
-      border-radius: 16px;
-
+      border-radius: var(--r);
       border: 1px solid var(--border);
+      overflow: hidden;
+      background: var(--panel);
+      transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+      animation: popIn 0.4s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes popIn {
+      from { opacity:0; transform: scale(0.97) translateY(8px); }
+      to   { opacity:1; transform: none; }
     }
 
+    .result-card.real  { border-color: rgba(0,229,160,0.3);  box-shadow: 0 0 40px rgba(0,229,160,0.08); }
+    .result-card.bias  { border-color: rgba(247,183,49,0.3);  box-shadow: 0 0 40px rgba(247,183,49,0.08); }
+    .result-card.fake  { border-color: rgba(255,77,109,0.3);  box-shadow: 0 0 40px rgba(255,77,109,0.08); }
+
+    /* verdict header strip */
+    .verdict-strip {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .result-card.real .verdict-strip  { background: var(--real-dim); }
+    .result-card.bias .verdict-strip  { background: var(--bias-dim); }
+    .result-card.fake .verdict-strip  { background: var(--fake-dim); }
+
+    .verdict-left { display: flex; align-items: center; gap: 12px; }
+
+    .verdict-icon-wrap {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .result-card.real .verdict-icon-wrap { background: rgba(0,229,160,0.18); }
+    .result-card.bias .verdict-icon-wrap { background: rgba(247,183,49,0.18); }
+    .result-card.fake .verdict-icon-wrap { background: rgba(255,77,109,0.18); }
 
     .label-en {
-
-      font-size: 34px;
-
+      font-size: 26px;
       font-weight: 800;
+      letter-spacing: -0.01em;
+      line-height: 1;
     }
+    .result-card.real .label-en { color: var(--real); }
+    .result-card.bias .label-en { color: var(--bias); }
+    .result-card.fake .label-en { color: var(--fake); }
 
-
-    .confidence-badge {
-
-      padding: 8px 14px;
-
-      background: rgba(255, 255, 255, .05);
-
-      border-radius: 50px;
-
+    .label-ur {
+      font-family: 'Noto Nastaliq Urdu';
       font-size: 13px;
+      color: var(--ink2);
+      margin-top: 2px;
     }
 
+    .conf-badge {
+      font-family: 'JetBrains Mono';
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .result-card.real .conf-badge { background: rgba(0,229,160,0.12); color: var(--real); border: 1px solid rgba(0,229,160,0.2); }
+    .result-card.bias .conf-badge { background: rgba(247,183,49,0.12); color: var(--bias); border: 1px solid rgba(247,183,49,0.2); }
+    .result-card.fake .conf-badge { background: rgba(255,77,109,0.12); color: var(--fake); border: 1px solid rgba(255,77,109,0.2); }
 
-
-    /* PROGRESS */
-
+    /* prob bars */
+    .prob-section {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .prob-lbl {
+      font-family: 'JetBrains Mono';
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      margin-bottom: 4px;
+    }
+    .prob-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 40px;
+      align-items: center;
+      gap: 10px;
+    }
+    .prob-row-label { font-family:'JetBrains Mono'; font-size:10px; font-weight:500; }
     .prob-bar-wrap {
-
-      height: 8px;
-
-      background: rgba(255, 255, 255, .08);
-
+      height: 6px;
+      background: rgba(255,255,255,0.05);
       border-radius: 20px;
+      overflow: hidden;
     }
-
-    .real {
-
-      background:
-        linear-gradient(90deg,
-          #16a34a,
-          #22c55e);
+    .prob-bar {
+      height: 100%;
+      border-radius: 20px;
+      width: 0%;
+      transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
     }
+    .prob-bar.real { background: linear-gradient(90deg, #00b578, var(--real)); }
+    .prob-bar.bias { background: linear-gradient(90deg, #d97706, var(--bias)); }
+    .prob-bar.fake { background: linear-gradient(90deg, #e11d48, var(--fake)); }
+    .prob-val { font-family:'JetBrains Mono'; font-size:10px; color:var(--ink2); text-align:left; direction:ltr; }
 
-    .bias {
-
-      background:
-        linear-gradient(90deg,
-          #d97706,
-          #f59e0b);
+    /* meta chips */
+    .meta-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
     }
-
-    .fake {
-
-      background:
-        linear-gradient(90deg,
-          #dc2626,
-          #ef4444);
-    }
-
-
-
-    /* INFO CARDS */
-
-    .info-card {
-
-      padding: 24px;
-
-      background: var(--card);
-
-      backdrop-filter: blur(20px);
-
-      border-radius: 16px;
-
+    .chip {
+      font-family: 'JetBrains Mono';
+      font-size: 9px;
+      padding: 4px 9px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.04);
       border: 1px solid var(--border);
-
-      transition: .3s;
+      color: var(--ink2);
     }
 
+    /* ── Info legend ── */
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      animation: fadeUp 0.5s 0.2s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .legend-item {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      transition: all 0.25s;
+    }
+    .legend-item:hover { background: rgba(255,255,255,0.03); transform: translateY(-2px); }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+    .legend-dot.real { background: var(--real); box-shadow: 0 0 8px var(--real); }
+    .legend-dot.bias { background: var(--bias); box-shadow: 0 0 8px var(--bias); }
+    .legend-dot.fake { background: var(--fake); box-shadow: 0 0 8px var(--fake); }
+    .legend-title { font-size:11px; font-weight:700; letter-spacing:0.03em; }
+    .legend-title.real { color: var(--real); }
+    .legend-title.bias { color: var(--bias); }
+    .legend-title.fake { color: var(--fake); }
+    .legend-ur { font-family:'Noto Nastaliq Urdu'; font-size:11px; color:var(--ink2); line-height:1.8; margin-top:2px; direction:rtl; }
 
-    .info-card:hover {
+    /* ── Error ── */
+    #error-panel {
+      display: none;
+      margin-top: 10px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: rgba(255,77,109,0.08);
+      border: 1px solid rgba(255,77,109,0.25);
+      color: var(--fake);
+      font-size: 12px;
+    }
 
-      transform: translateY(-5px);
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      font-family: 'JetBrains Mono';
+      font-size: 10px;
+      color: var(--ink3);
+      letter-spacing: 0.04em;
+      padding: 4px 0 8px;
+      animation: fadeUp 0.5s 0.3s both;
+    }
 
-      background:
-        rgba(255, 255, 255, .06);
+    /* ── Kbd shortcut hint ── */
+    .kbd-hint {
+      font-family: 'JetBrains Mono';
+      font-size: 9px;
+      color: var(--ink3);
+      text-align: center;
+      margin-top: 6px;
+    }
+    kbd {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border-hi);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 9px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .shell { padding: 12px 10px 8px; }
+      .main-grid { grid-template-columns: 1fr; }
+      .legend { grid-template-columns: 1fr; }
+      header { flex-direction: column; gap: 8px; }
+      header h1 { font-size: 18px; }
     }
   </style>
 </head>
 
 <body>
+<div class="shell">
 
   <!-- HEADER -->
   <header>
-    <div class="badge">AI News Detector • اردو خبر جانچ</div>
-    <h1>Urdu News Verifier</h1>
-    <p>خبر کو نیچے درج کریں اور ماڈل منتخب کریں تاکہ پتہ چلے کہ یہ حقیقی ہے، جانبدار ہے یا جھوٹی</p>
+    <div class="header-left">
+      <span class="badge">AI News Detector • اردو خبر جانچ</span>
+      <h1>Urdu News Verifier</h1>
+    </div>
+    <div class="header-right">
+      <div class="urdu-sub">خبر درج کریں — ماڈل منتخب کریں<br>حقیقی، جانبدار یا جھوٹی کا پتہ لگائیں</div>
+    </div>
   </header>
 
-  <!-- MAIN CARD -->
-  <div class="card" role="main">
+  <!-- MAIN -->
+  <div class="main-grid">
 
-    <!-- MODEL SELECTOR -->
-    <div class="model-tabs" role="tablist" aria-label="Model selection">
-      <button id="tab-nb" class="tab-btn active" role="tab" aria-selected="true" data-model="nb"
-        onclick="selectModel('nb')">
-        <span class="tab-icon"></span> Naive Bayes
+    <!-- LEFT: input -->
+    <div class="panel" style="display:flex;flex-direction:column;">
+      <div class="sec-label">01 — Select Model</div>
+
+      <div class="model-tabs">
+        <button id="tab-nb" class="tab-btn active" role="tab" aria-selected="true" data-model="nb" onclick="selectModel('nb')">
+          <span class="tab-icon">⊛</span> Naive Bayes
+        </button>
+        <button id="tab-cnn" class="tab-btn" role="tab" aria-selected="false" data-model="cnn" onclick="selectModel('cnn')">
+          <span class="tab-icon">◈</span> TextCNN
+        </button>
+      </div>
+
+      <div class="sec-label" style="margin-top:4px;">02 — Enter News Text</div>
+
+      <div class="textarea-wrap">
+        <textarea id="news-input"
+          placeholder="یہاں اردو خبر لکھیں یا پیسٹ کریں…"
+          rows="6" maxlength="2000"
+          aria-label="News text input"
+          oninput="updateCharCount()"></textarea>
+        <span class="char-count" id="char-count">0 / 2000</span>
+      </div>
+
+      <button id="predict-btn" class="btn-predict" onclick="runPrediction()" aria-label="Run prediction">
+        <div class="btn-inner">
+          <span class="btn-icon" id="btn-icon">◆</span>
+          <span id="btn-text">تجزیہ کریں &nbsp;/&nbsp; Analyze</span>
+          <div class="spinner" id="spinner"></div>
+        </div>
       </button>
-      <button id="tab-cnn" class="tab-btn" role="tab" aria-selected="false" data-model="cnn"
-        onclick="selectModel('cnn')">
-        <span class="tab-icon"></span> TextCNN
-      </button>
+
+      <div class="kbd-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to run</div>
+
+      <div id="error-panel" role="alert"></div>
     </div>
 
-    <!-- TEXTAREA -->
-    <label class="input-label" for="news-input">خبر کا متن درج کریں</label>
-    <div class="textarea-wrap">
-      <textarea id="news-input" placeholder="یہاں اردو خبر لکھیں یا پیسٹ کریں…" rows="6" maxlength="2000"
-        aria-label="News text input" oninput="updateCharCount()"></textarea>
-      <span class="char-count" id="char-count">0 / 2000</span>
-    </div>
+    <!-- RIGHT: result -->
+    <div class="result-col">
 
-    <!-- SUBMIT -->
-    <button id="predict-btn" class="btn-predict" onclick="runPrediction()" aria-label="Run prediction">
-      <span class="btn-icon" id="btn-icon"></span>
-      <span id="btn-text">تجزیہ کریں</span>
-      <div class="spinner" id="spinner"></div>
-    </button>
-
-    <!-- ERROR -->
-    <div id="error-panel" role="alert"></div>
-
-    <!-- RESULT -->
-    <div id="result-panel" aria-live="polite">
-      <div id="result-card" class="result-card">
-
-        <div class="result-top">
-          <div class="verdict">
-            <div class="verdict-icon" id="verdict-icon"></div>
-            <div class="verdict-text">
-              <div class="label-en" id="label-en">Real</div>
-              <div class="label-ur" id="label-ur">حقیقی خبر</div>
-            </div>
-          </div>
-          <div class="confidence-badge" id="conf-badge">98.5% اعتماد</div>
+      <!-- idle -->
+      <div class="panel" id="idle-panel">
+        <div class="idle-state">
+          <div class="idle-orb">◈</div>
+          <div class="idle-text">Awaiting analysis</div>
+          <div class="idle-hint">خبر درج کریں اور "تجزیہ کریں" دبائیں</div>
         </div>
+      </div>
 
-        <!-- PROBABILITY BARS -->
-        <div class="prob-section">
-          <div class="prob-title">Class Probabilities</div>
-          <div class="prob-row">
-            <span class="prob-row-label" style="color:var(--real-clr)">Real</span>
-            <div class="prob-bar-wrap">
-              <div class="prob-bar real" id="bar-real" style="width:0%"></div>
+      <!-- result -->
+      <div id="result-panel" aria-live="polite">
+        <div id="result-card" class="result-card">
+
+          <div class="verdict-strip">
+            <div class="verdict-left">
+              <div class="verdict-icon-wrap">
+                <span id="verdict-icon">✓</span>
+              </div>
+              <div>
+                <div class="label-en" id="label-en">Real</div>
+                <div class="label-ur" id="label-ur">حقیقی خبر</div>
+              </div>
             </div>
-            <span class="prob-val" id="val-real">0%</span>
+            <div class="conf-badge" id="conf-badge">98.5%</div>
           </div>
-          <div class="prob-row">
-            <span class="prob-row-label" style="color:var(--bias-clr)">Bias</span>
-            <div class="prob-bar-wrap">
-              <div class="prob-bar bias" id="bar-bias" style="width:0%"></div>
+
+          <div class="prob-section">
+            <div class="prob-lbl">Class Probabilities</div>
+            <div class="prob-row">
+              <span class="prob-row-label" style="color:var(--real)">Real</span>
+              <div class="prob-bar-wrap"><div class="prob-bar real" id="bar-real" style="width:0%"></div></div>
+              <span class="prob-val" id="val-real">0%</span>
             </div>
-            <span class="prob-val" id="val-bias">0%</span>
-          </div>
-          <div class="prob-row">
-            <span class="prob-row-label" style="color:var(--fake-clr)">Fake</span>
-            <div class="prob-bar-wrap">
-              <div class="prob-bar fake" id="bar-fake" style="width:0%"></div>
+            <div class="prob-row">
+              <span class="prob-row-label" style="color:var(--bias)">Bias</span>
+              <div class="prob-bar-wrap"><div class="prob-bar bias" id="bar-bias" style="width:0%"></div></div>
+              <span class="prob-val" id="val-bias">0%</span>
             </div>
-            <span class="prob-val" id="val-fake">0%</span>
+            <div class="prob-row">
+              <span class="prob-row-label" style="color:var(--fake)">Fake</span>
+              <div class="prob-bar-wrap"><div class="prob-bar fake" id="bar-fake" style="width:0%"></div></div>
+              <span class="prob-val" id="val-fake">0%</span>
+            </div>
           </div>
+
+          <div class="meta-row" id="meta-row"></div>
         </div>
+      </div>
 
-        <!-- META -->
-        <div class="meta-row" id="meta-row"></div>
+    </div><!-- /result-col -->
+  </div><!-- /main-grid -->
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot real"></div>
+      <div>
+        <div class="legend-title real">Real — حقیقی</div>
+        <div class="legend-ur">خبر مستند ذرائع سے تصدیق شدہ ہے</div>
       </div>
     </div>
-
-  </div><!-- /card -->
-
-  <!-- INFO GRID -->
-  <div class="info-grid" style="max-width:720px;width:100%">
-    <div class="info-card">
-      <div class="ic-icon"></div>
-      <div class="ic-title">Real — حقیقی</div>
-      <div class="ic-desc">خبر مستند ذرائع سے تصدیق شدہ اور درست ہے</div>
+    <div class="legend-item">
+      <div class="legend-dot bias"></div>
+      <div>
+        <div class="legend-title bias">Bias — جانبداری</div>
+        <div class="legend-ur">مبالغہ آرائی یا جانبداری موجود ہے</div>
+      </div>
     </div>
-    <div class="info-card">
-      <div class="ic-icon"></div>
-      <div class="ic-title">Bias — جانبداری</div>
-      <div class="ic-desc">خبر میں جانبداری یا مبالغہ آرائی کا عنصر موجود ہے</div>
-    </div>
-    <div class="info-card">
-      <div class="ic-icon"></div>
-      <div class="ic-title">Fake — جھوٹی</div>
-      <div class="ic-desc">خبر گمراہ کن، من گھڑت یا پروپیگنڈا پر مبنی ہے</div>
+    <div class="legend-item">
+      <div class="legend-dot fake"></div>
+      <div>
+        <div class="legend-title fake">Fake — جھوٹی</div>
+        <div class="legend-ur">من گھڑت یا پروپیگنڈا پر مبنی</div>
+      </div>
     </div>
   </div>
 
-  <footer>
-    Built with Naive Bayes &amp; TextCNN (from scratch, NumPy only) &nbsp;·&nbsp; Urdu NLP Pipeline
-  </footer>
+  <footer>Naive Bayes &amp; TextCNN · NumPy Only · Urdu NLP Pipeline</footer>
 
-  <script>
-    /* ─── state ─────────────────────────────────────────── */
-    let selectedModel = 'nb';
+</div><!-- /shell -->
 
-    const LABEL_META = {
-      Real: { icon: '', ur: 'حقیقی خبر', cls: 'real' },
-      Bias: { icon: '', ur: 'جانبدار خبر', cls: 'bias' },
-      Fake: { icon: '', ur: 'جھوٹی خبر', cls: 'fake' },
-    };
+<script>
+  let selectedModel = 'nb';
 
-    /* ─── model tabs ────────────────────────────────────── */
-    function selectModel(m) {
-      selectedModel = m;
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.model === m);
-        b.setAttribute('aria-selected', b.dataset.model === m);
-      });
-    }
+  const LABEL_META = {
+    Real: { icon: '✓', ur: 'حقیقی خبر', cls: 'real' },
+    Bias: { icon: '⚡', ur: 'جانبدار خبر', cls: 'bias' },
+    Fake: { icon: '✕', ur: 'جھوٹی خبر', cls: 'fake' },
+  };
 
-    /* ─── char count ────────────────────────────────────── */
-    function updateCharCount() {
-      const len = document.getElementById('news-input').value.length;
-      document.getElementById('char-count').textContent = `${len} / 2000`;
-    }
-
-    /* ─── helpers ───────────────────────────────────────── */
-    function showError(msg) {
-      const ep = document.getElementById('error-panel');
-      ep.textContent = '⚠️ ' + msg;
-      ep.style.display = 'block';
-      document.getElementById('result-panel').style.display = 'none';
-    }
-    function hideError() {
-      document.getElementById('error-panel').style.display = 'none';
-    }
-
-    function setLoading(on) {
-      const btn = document.getElementById('predict-btn');
-      const spinner = document.getElementById('spinner');
-      const icon = document.getElementById('btn-icon');
-      const txt = document.getElementById('btn-text');
-      btn.disabled = on;
-      spinner.style.display = on ? 'block' : 'none';
-      icon.style.display = on ? 'none' : 'inline';
-      txt.textContent = on ? 'تجزیہ ہو رہا ہے…' : 'تجزیہ کریں';
-    }
-
-    /* ─── render result ─────────────────────────────────── */
-    function showResult(data) {
-      const panel = document.getElementById('result-panel');
-      const card = document.getElementById('result-card');
-      const meta = LABEL_META[data.label] || LABEL_META['Fake'];
-
-      // reset animation
-      panel.style.display = 'none';
-      void panel.offsetWidth;
-
-      // label class
-      card.className = `result-card ${meta.cls}`;
-
-      document.getElementById('verdict-icon').textContent = meta.icon;
-      document.getElementById('label-en').textContent = data.label;
-      document.getElementById('label-ur').textContent = meta.ur;
-      document.getElementById('conf-badge').textContent = `${data.confidence}% اعتماد`;
-
-      // bars — reset first, then animate
-      const probs = data.probabilities;  // { Real: x, Bias: y, Fake: z }
-      ['Real', 'Bias', 'Fake'].forEach(lbl => {
-        const key = lbl.toLowerCase();
-        const val = probs[lbl] ?? 0;
-        const bar = document.getElementById(`bar-${key}`);
-        const txt = document.getElementById(`val-${key}`);
-        bar.style.width = '0%';
-        txt.textContent = '0%';
-        setTimeout(() => {
-          bar.style.width = `${val}%`;
-          txt.textContent = `${val}%`;
-        }, 60);
-      });
-
-      // meta chips
-      const mr = document.getElementById('meta-row');
-      mr.innerHTML = `
-      <span class="chip"> ${data.model_used}</span>
-      <span class="chip"> ${data.token_count} tokens</span>
-      <span class="chip"> ${data.confidence}% confidence</span>
-    `;
-
-      panel.style.display = 'block';
-    }
-
-    /* ─── main predict ──────────────────────────────────── */
-    async function runPrediction() {
-      const text = document.getElementById('news-input').value.trim();
-      if (!text) { showError('براہ کرم پہلے خبر کا متن درج کریں۔'); return; }
-
-      hideError();
-      setLoading(true);
-
-      try {
-        const resp = await fetch('/predict', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, model: selectedModel }),
-        });
-        const data = await resp.json();
-
-        if (!resp.ok) {
-          showError(data.error || 'Server error — please try again.');
-        } else {
-          showResult(data);
-        }
-      } catch (err) {
-        showError('Connection error: ' + err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    /* ─── keyboard shortcut: Ctrl+Enter ─────────────────── */
-    document.addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runPrediction();
+  function selectModel(m) {
+    selectedModel = m;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.model === m);
+      b.setAttribute('aria-selected', b.dataset.model === m);
     });
-  </script>
-</body>
+  }
 
+  function updateCharCount() {
+    const len = document.getElementById('news-input').value.length;
+    document.getElementById('char-count').textContent = `${len} / 2000`;
+  }
+
+  function showError(msg) {
+    const ep = document.getElementById('error-panel');
+    ep.textContent = '⚠ ' + msg;
+    ep.style.display = 'block';
+    document.getElementById('result-panel').style.display = 'none';
+    document.getElementById('idle-panel').style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('error-panel').style.display = 'none';
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('predict-btn');
+    const spinner = document.getElementById('spinner');
+    const icon = document.getElementById('btn-icon');
+    const txt = document.getElementById('btn-text');
+    btn.disabled = on;
+    spinner.style.display = on ? 'inline-block' : 'none';
+    icon.style.display = on ? 'none' : 'inline';
+    txt.textContent = on ? 'تجزیہ ہو رہا ہے…' : 'تجزیہ کریں  /  Analyze';
+  }
+
+  function showResult(data) {
+    const panel = document.getElementById('result-panel');
+    const idle  = document.getElementById('idle-panel');
+    const card  = document.getElementById('result-card');
+    const meta  = LABEL_META[data.label] || LABEL_META['Fake'];
+
+    idle.style.display = 'none';
+    panel.style.display = 'none';
+    void panel.offsetWidth;
+
+    card.className = `result-card ${meta.cls}`;
+
+    document.getElementById('verdict-icon').textContent = meta.icon;
+    document.getElementById('label-en').textContent = data.label;
+    document.getElementById('label-ur').textContent = meta.ur;
+    document.getElementById('conf-badge').textContent = `${data.confidence}%`;
+
+    const probs = data.probabilities;
+    ['Real','Bias','Fake'].forEach(lbl => {
+      const key = lbl.toLowerCase();
+      const val = probs[lbl] ?? 0;
+      document.getElementById(`bar-${key}`).style.width = '0%';
+      document.getElementById(`val-${key}`).textContent = '0%';
+      setTimeout(() => {
+        document.getElementById(`bar-${key}`).style.width = `${val}%`;
+        document.getElementById(`val-${key}`).textContent = `${val}%`;
+      }, 60);
+    });
+
+    document.getElementById('meta-row').innerHTML = `
+      <span class="chip">⊛ ${data.model_used}</span>
+      <span class="chip">◈ ${data.token_count} tokens</span>
+      <span class="chip">◆ ${data.confidence}% confidence</span>`;
+
+    panel.style.display = 'block';
+  }
+
+  /* ── Smart mock via Claude API ─────────────────────── */
+  async function classifyWithClaude(text, model) {
+    const systemPrompt = `You are an Urdu news classifier. Classify the given Urdu news text as one of: Real, Bias, or Fake.
+
+Rules:
+- Real: factual, neutral, source-attributed, no emotional manipulation
+- Bias: one-sided, exaggerated, emotionally charged but not completely false
+- Fake: fabricated, propaganda, conspiracy, extreme claims with no basis
+
+Respond ONLY with a JSON object, no markdown, no explanation:
+{"label":"Real"|"Bias"|"Fake","real":0-100,"bias":0-100,"fake":0-100}
+
+Where real+bias+fake = 100. The highest value must match the label.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: text }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content.map(b => b.text || '').join('').trim();
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    return parsed;
+  }
+
+  async function runPrediction() {
+    const text = document.getElementById('news-input').value.trim();
+    if (!text) { showError('براہ کرم پہلے خبر کا متن درج کریں۔'); return; }
+    hideError();
+    setLoading(true);
+
+    // Try real backend first, fall back to Claude mock
+    let usedMock = false;
+    try {
+      const resp = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, model: selectedModel }),
+        signal: AbortSignal.timeout(3000)
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Server error');
+      showResult(data);
+    } catch (_) {
+      // Backend not available — use Claude API mock
+      usedMock = true;
+      try {
+        const cls = await classifyWithClaude(text, selectedModel);
+        const tokens = text.trim().split(/\s+/).length;
+        const label = cls.label;
+        const confidence = Math.max(cls.real, cls.bias, cls.fake);
+        showResult({
+          label,
+          confidence,
+          probabilities: { Real: cls.real, Bias: cls.bias, Fake: cls.fake },
+          model_used: selectedModel === 'nb' ? 'Naive Bayes (mock)' : 'TextCNN (mock)',
+          token_count: tokens
+        });
+      } catch (err) {
+        showError('تجزیہ ناکام ہوا: ' + err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runPrediction();
+  });
+</script>
+</body>
 </html>
