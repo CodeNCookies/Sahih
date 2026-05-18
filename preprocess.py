@@ -145,35 +145,86 @@ def _make_synthetic_dataset(n: int = 1000) -> tuple:
 # DATA LOADER
 # ─────────────────────────────────────────────────────────────
 
-def load_raw(raw_dir: str) -> tuple:
-    """
-    Try to load CSV files from raw_dir.
-    Expected CSV columns: 'text', 'label'
-    Falls back to synthetic data if directory is empty.
-    """
-    csv_files = [f for f in os.listdir(raw_dir)
-                 if f.lower().endswith(".csv")]
+def load_raw(raw_dir):
 
-    if not csv_files:
-        print("No CSV found in data/raw/ - using synthetic data.")
-        print("    To use your own data: place a CSV with 'text' and 'label'")
-        print("    columns in data/raw/ and re-run.\n")
-        return _make_synthetic_dataset(n=1000)
+    import os
+    import csv
 
-    texts, labels = [], []
-    for fname in csv_files:
-        fpath = os.path.join(raw_dir, fname)
-        print(f"  Loading: {fpath}")
-        with open(fpath, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                text  = row.get("text", "").strip()
-                label = row.get("label", "").strip()
-                if text and label in CLASSES:
-                    texts.append(text)
-                    labels.append(label)
+    file_path = os.path.join(raw_dir, "dataset.csv")
 
-    print(f"  Loaded {len(texts)} samples from {len(csv_files)} file(s).")
+    texts = []
+    labels = []
+
+    total_rows = 0
+    skipped = 0
+
+    with open(file_path, "r", encoding="utf-8") as file:
+
+        reader = csv.DictReader(file)
+
+        for row in reader:
+
+            total_rows += 1
+
+            text = str(row.get("text") or "").strip()
+            label = str(row.get("label") or "").strip()
+
+            if text == "" or label == "":
+                skipped += 1
+                print("Skipped row:", total_rows)
+                print(row)
+                continue
+
+            texts.append(text)
+            labels.append(label)
+
+    print(f"\nCSV rows found: {total_rows}")
+    print(f"Loaded rows: {len(texts)}")
+    print(f"Skipped rows: {skipped}")
+
+    return texts, labels
+
+    import os
+    import csv
+
+    file_path = os.path.join(
+        raw_dir,
+        "dataset.csv"
+    )
+
+    print(f"  Loading: {file_path}")
+
+    texts = []
+    labels = []
+
+    with open(
+        file_path,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        reader = csv.DictReader(file)
+
+        for row in reader:
+
+            # safely handle missing values
+            text = str(
+                row.get("text") or ""
+            ).strip()
+
+            label = str(
+                row.get("label") or ""
+            ).strip()
+
+            # ignore bad rows
+            if text == "" or label == "":
+                continue
+
+            texts.append(text)
+            labels.append(label)
+
+    print(f"  Loaded {len(texts)} records")
+
     return texts, labels
 
 
@@ -330,8 +381,6 @@ def main():
     # 4. Save
     print("[4/4] Saving processed data ...")
     save_processed(clean_texts, clean_labels)
-
-    print("\nPreprocessing complete. Run features.py next.\n")
 
 
 if __name__ == "__main__":

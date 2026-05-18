@@ -211,8 +211,6 @@ def main():
             "alpha":    best_alpha,
         }, f, indent=2)
     print(f"  Results saved: {results_path}")
-
-    print("\nNaive Bayes complete. Run ann.py next.\n")
     return results
 
 

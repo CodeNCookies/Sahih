@@ -6,10 +6,8 @@ Urdu_Fake_News_Project/
 │
 ├── preprocess.py          # Step 1: Clean and normalize Urdu text
 ├── features.py            # Step 2: Build vocabulary, TF-IDF, sequences
-├── naive_bayes.py         # Step 3: Multinomial Naive Bayes classifier
-├── ann.py                 # Step 4: Artificial Neural Network
-├── cnn.py                 # Step 5: 1D Convolutional Neural Network
-├── train_test.py          # Step 6: Run all models, save results
+├── naive_bayes.py         # Step 3: Multinomial Naive Bayes classifier            
+├── cnn.py                 # Step 5: 1D Convolutional Neural Network          
 ├── compare.py             # Step 7: Compare models, generate charts
 │
 ├── data/
@@ -24,7 +22,7 @@ Urdu_Fake_News_Project/
 
 ## How to Run
 
-### All at once: python preprocess.py; python features.py; python naive_bayes.py; python ann.py; python cnn.py; python train_test.py; python compare.py
+### All at once: python preprocess.py; python features.py; python naive_bayes.py; python cnn.py; python compare;
 
 
 ## Your Dataset Format
@@ -97,39 +95,6 @@ The simplest model — uses word probabilities to predict if news is Real, Biase
 
 ---
 
-### `ann.py` — Step 4: Artificial Neural Network
-
-A basic neural network that learns patterns in the data through multiple layers of "neurons."
-
-**Architecture (like building blocks):**
-```
-Input Words -> Embedding Layer -> Dense(128) -> Dense(64) -> Output(3 classes)
-                 |                  |               |              |
-           Words to vectors    First layer     Second layer    Prediction
-           (300 numbers)       of neurons      of neurons   (Real/Biased/Fake)
-```
-
-**How it learns:**
-1. **Forward pass:** Words -> Vectors -> Math operations -> Prediction
-2. **Calculate error:** How wrong was the prediction? (Cross-entropy loss)
-3. **Backward pass:** Work backwards, figuring out which "neurons" contributed to the error
-4. **Update weights:** Adjust each neuron slightly to reduce error next time
-5. **Repeat** thousands of times on mini-batches of 16 samples
-
-**Special techniques used:**
-- **Dropout (30%):** Randomly turns off neurons during training to prevent memorization
-- **He initialization:** Smart starting values for weights (not just zeros)
-- **Momentum SGD:** Like a ball rolling downhill — remembers previous direction to avoid getting stuck
-- **Early stopping:** Stops training if validation accuracy doesn't improve for 5 epochs
-- **Weight restore:** Keeps the best version of the model (not the last one)
-
-**What you'll see:**
-- Training progress per epoch (loss and accuracy for both train and validation)
-- Best weights restored automatically
-- Final test evaluation with confusion matrix
-
----
-
 ### `cnn.py` — Step 5: Convolutional Neural Network
 
 Like the ANN, but better at finding local patterns — it can detect phrases like "جھوٹی خبر" (fake news) regardless of where they appear.
@@ -158,20 +123,6 @@ Filter #3: Detects "مخالف" + "الزام" -> strong signal for Biased
 - Same training loop as ANN
 - Typically better accuracy than both Naive Bayes and ANN
 - 277K total parameters (the model has to learn)
-
----
-
-### `train_test.py` — Step 6: Orchestrator
-
-Runs the entire pipeline in order. Think of it as the "conductor" of the orchestra.
-
-**What it does:**
-1. Runs preprocessing (cleaning text)
-2. Runs feature extraction (words -> numbers)
-3. Runs all three models (Naive Bayes, ANN, CNN)
-4. Collects and saves all results
-
-**You only need to run this one file** — it calls the others automatically.
 
 ---
 
@@ -234,7 +185,7 @@ Calculates how good your model is — all formulas implemented from scratch.
 You now have a complete, working fake news detection system that:
 - Handles real Urdu text (normalizes characters, removes noise)
 - Converts text to numbers (TF-IDF + word embeddings)
-- Trains 3 different models (simple to complex)
+- Trains 2 different models (simple to complex)
 - Compares results with charts
 - Everything is built from scratch — no black boxes
 - Well-commented so you can learn from it

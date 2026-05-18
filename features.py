@@ -27,10 +27,10 @@ VOCAB_OUT     = os.path.join(PROCESSED_DIR, "vocab.json")
 # CONFIGURATION
 # ─────────────────────────────────────────────────────────────
 MAX_VOCAB  = 10_000   # keep top-N most frequent words
-MAX_LEN    = 100      # max tokens per sample (for embedding input)
+MAX_LEN    = 80    # max tokens per sample (for embedding input)
 EMBED_DIM  = 100    # embedding vector size
 TEST_RATIO = 0.20
-VAL_RATIO  = 0.10     # of training set
+VAL_RATIO  = 0.10  # of training set
 RANDOM_SEED = 42
 
 
@@ -317,7 +317,7 @@ def main():
              )
 
     print(f"\nSaved features: {FEATURES_OUT}")
-    print("\nFeature extraction complete. Run naive_bayes.py next.\n")
+
 
 
 def load_features():
