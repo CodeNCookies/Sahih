@@ -1,0 +1,8 @@
+flask
+numpy
+pandas
+matplotlib
+scikit-learn
+scipy
+regex
+tensorflow

@@ -14,6 +14,9 @@ Urdu_Fake_News_Project/
 │   ├── raw/               # Put your dataset.csv here
 │   └── processed/         # Auto-generated: features, models, results
 │
+|__templates/
+|   |__ index.html
+|   |
 └── utils/
     ├── urdu_normalizer.py # Urdu character normalization + stopwords
     └── metrics.py         # Accuracy, Precision, Recall, F1 (from scratch)
