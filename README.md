@@ -1,3 +1,5 @@
+# Sahih
+This project is made to detect whether a given Urdu news item is fake, biased, or real using neural networks, addressing low-resource language challenges.
 # Urdu Fake News Classifier — Built From Scratch
 
 ## Project Structure
@@ -17,6 +19,16 @@ Urdu_Fake_News_Project/
 |__templates/
 |   |__ index.html
 |   |
+├── naive_bayes.py         # Step 3: Multinomial Naive Bayes classifier
+├── ann.py                 # Step 4: Artificial Neural Network
+├── cnn.py                 # Step 5: 1D Convolutional Neural Network
+├── train_test.py          # Step 6: Run all models, save results
+├── compare.py             # Step 7: Compare models, generate charts
+│
+├── data/
+│   ├── raw/               #  dataset.csv here
+│   └── processed/         # Auto-generated: features, models, results
+│
 └── utils/
     ├── urdu_normalizer.py # Urdu character normalization + stopwords
     └── metrics.py         # Accuracy, Precision, Recall, F1 (from scratch)
@@ -24,11 +36,15 @@ Urdu_Fake_News_Project/
 ```
 
 ## How to Run
-
 ### All at once: python preprocess.py; python features.py; python naive_bayes.py; python cnn.py; python compare;
 
 
 ## Your Dataset Format
+=======
+### All at once: python preprocess.py; python features.py; python naive_bayes.py; python ann.py; python cnn.py; python train_test.py; python compare.py
+
+
+## Dataset Format
 | text | label |
 |------|-------|
 | "حکومت نے نیا قانون منظور کر لیا" | Real |
@@ -44,6 +60,7 @@ Takes raw Urdu news headlines and makes them ready for the computer to understan
 
 **What happens:**
 1. **Reads** your CSV file from `data/raw/`
+1. **Reads** CSV file from `data/raw/`
 2. **Removes** emojis, special symbols, URLs, HTML code
 3. **Normalizes** Urdu characters (so آ and ا are treated as the same letter)
 4. **Removes** stopwords (common words like "ہے", "کا", "میں" that don't add meaning)
@@ -90,7 +107,7 @@ The simplest model — uses word probabilities to predict if news is Real, Biase
 
 **Why "Naive"?** It assumes all words are independent (which isn't true — "نیا" and "قانون" often appear together). But it still works surprisingly well!
 
-**What you'll see:**
+**What we'll see:**
 - Grid search over alpha values (0.01, 0.1, 0.5, 1.0, 2.0, 5.0)
 - Best alpha chosen based on validation accuracy
 - Final accuracy, precision, recall, F1 score on test data
@@ -98,6 +115,40 @@ The simplest model — uses word probabilities to predict if news is Real, Biase
 
 ---
 
+### `ann.py` — Step 4: Artificial Neural Network
+
+A basic neural network that learns patterns in the data through multiple layers of "neurons."
+
+**Architecture (like building blocks):**
+```
+Input Words -> Embedding Layer -> Dense(128) -> Dense(64) -> Output(3 classes)
+                 |                  |               |              |
+           Words to vectors    First layer     Second layer    Prediction
+           (300 numbers)       of neurons      of neurons   (Real/Biased/Fake)
+```
+
+**How it learns:**
+1. **Forward pass:** Words -> Vectors -> Math operations -> Prediction
+2. **Calculate error:** How wrong was the prediction? (Cross-entropy loss)
+3. **Backward pass:** Work backwards, figuring out which "neurons" contributed to the error
+4. **Update weights:** Adjust each neuron slightly to reduce error next time
+5. **Repeat** thousands of times on mini-batches of 16 samples
+
+**Special techniques used:**
+- **Dropout (30%):** Randomly turns off neurons during training to prevent memorization
+- **He initialization:** Smart starting values for weights (not just zeros)
+- **Momentum SGD:** Like a ball rolling downhill — remembers previous direction to avoid getting stuck
+- **Early stopping:** Stops training if validation accuracy doesn't improve for 5 epochs
+- **Weight restore:** Keeps the best version of the model (not the last one)
+
+**What we'll see:**
+- Training progress per epoch (loss and accuracy for both train and validation)
+- Best weights restored automatically
+- Final test evaluation with confusion matrix
+
+---
+
+>>>>>>> 11c7783dbff8a374bd854ce11151be79e6c6840d
 ### `cnn.py` — Step 5: Convolutional Neural Network
 
 Like the ANN, but better at finding local patterns — it can detect phrases like "جھوٹی خبر" (fake news) regardless of where they appear.
@@ -134,6 +185,26 @@ Filter #3: Detects "مخالف" + "الزام" -> strong signal for Biased
 Shows you which model performed best with visual charts.
 
 **What you'll see:**
+=======
+### `train_test.py` — Step 6: Orchestrator
+
+Runs the entire pipeline in order. Think of it as the "conductor" of the orchestra.
+
+**What it does:**
+1. Runs preprocessing (cleaning text)
+2. Runs feature extraction (words -> numbers)
+3. Runs all three models (Naive Bayes, ANN, CNN)
+4. Collects and saves all results
+
+**We only need to run this one file** — it calls the others automatically.
+
+---
+
+### `compare.py` — Step 7: Results Comparison
+
+Shows which model performed best with visual charts.
+
+**What we'll see:**
 - **Bar chart:** Accuracy comparison (ASCII + PNG)
 - **Table:** All metrics side by side
 - **Training curves:** How ANN and CNN learned over time (loss going down = good)
@@ -180,15 +251,3 @@ Calculates how good your model is — all formulas implemented from scratch.
 | **Naive Bayes** | 60-68% | Simple, fast, assumes word independence |
 | **ANN** | 68-75% | Learns word relationships, better than NB |
 | **CNN** | 70-78% | Best at finding patterns anywhere in text |
-
---
-
-## Summary
-
-You now have a complete, working fake news detection system that:
-- Handles real Urdu text (normalizes characters, removes noise)
-- Converts text to numbers (TF-IDF + word embeddings)
-- Trains 2 different models (simple to complex)
-- Compares results with charts
-- Everything is built from scratch — no black boxes
-- Well-commented so you can learn from it
